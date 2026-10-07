@@ -166,8 +166,13 @@ static void calc_log_alpha_beta(
   }
 
   // Iterate over the rest of the time steps, for each of the target tokens
-  // assigned to this thread.
-  for (T_index block_s = 0; block_s < S_max; block_s += tptg) {
+  // assigned to this thread. Targets longer than the threadgroup run in blocks
+  // of `tptg` positions, each over all time steps before the next. Alpha reads
+  // s-1 and s-2, but beta reads s+1 and s+2, so beta walks the blocks from the
+  // last one down; either way a block only reads blocks that have finished.
+  const T_index n_blocks = (S_max + tptg - 1) / tptg;
+  for (T_index i = 0; i < n_blocks; i++) {
+    T_index block_s = (beta ? (n_blocks - 1 - i) : i) * tptg;
     T_index s = block_s + tid;
     T_index target_token;
     bool use_C;
