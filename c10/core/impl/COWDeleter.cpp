@@ -5,7 +5,8 @@
 namespace c10::impl {
 
 void cow::cow_deleter(void* ctx) {
-  static_cast<cow::COWDeleterContext*>(ctx)->decrement_refcount();
+  std::unique_ptr<cow::COWReference> ref(static_cast<cow::COWReference*>(ctx));
+  ref->context->decrement_refcount();
 }
 
 cow::COWDeleterContext::COWDeleterContext(
@@ -26,13 +27,31 @@ auto cow::COWDeleterContext::decrement_refcount()
   TORCH_INTERNAL_ASSERT(refcount >= 0, refcount);
   if (refcount == 0) {
     std::unique_lock lock(mutex_);
-    auto result = std::move(data_);
+    LastReference result{std::move(data_), std::move(copy_events_)};
     lock.unlock();
     delete this;
     return {std::move(result)};
   }
 
   return std::shared_lock(mutex_);
+}
+
+auto cow::COWDeleterContext::is_unique() const -> bool {
+  return refcount_ == 1;
+}
+
+auto cow::COWDeleterContext::record_copy_event(c10::Stream stream) -> void {
+  std::lock_guard lock(copy_events_mutex_);
+  for (auto& [copy_stream, event] : copy_events_) {
+    if (copy_stream == stream) {
+      // Supersedes the previous event recorded on the same stream.
+      event.record(stream);
+      return;
+    }
+  }
+  c10::Event event(stream.device_type());
+  event.record(stream);
+  copy_events_.emplace_back(stream, std::move(event));
 }
 
 cow::COWDeleterContext::~COWDeleterContext() {
