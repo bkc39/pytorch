@@ -3872,7 +3872,9 @@ def _precompile_header(
             )
             return cmd_output.stdout.split()[-1]
 
-        preprocessor_hash = _get_file_checksum(preprocessor.get_target_file_path())
+        target_file_path = preprocessor.get_target_file_path()
+        preprocessor_hash = _get_file_checksum(target_file_path)
+        mtime = Path(target_file_path).stat().st_mtime_ns
 
     header_build_option = CppTorchDeviceOptions(**compile_command, precompiling=True)
     header_hash, header_full_path = write(
@@ -3881,6 +3883,7 @@ def _precompile_header(
         extra=(
             hashable_cmd_line
             + preprocessor_hash
+            + str(mtime)
             + get_compiler_version_info(header_build_option.get_compiler())
         ),
         specified_dir=_HEADER_DIR,
