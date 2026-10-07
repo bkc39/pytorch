@@ -118,6 +118,7 @@ ignore-missing-imports = [
     "redis.*",
     "tabulate.*",
     "shtab.*",
+    "modal",
 ]
 # By default, mypy does not check untyped definitions.
 # However, mypy has a configuration called check_untyped_defs which is used

@@ -722,6 +722,9 @@ select = [
 "tools/linter/**" = [
     "LOG015" # please fix
 ]
+"tools/sandbox/**" = [
+    "G004", # scripts, not library code: f-strings in log calls are fine
+]
 
 [tool.codespell]
 ignore-words = "tools/linter/dictionary.txt"
